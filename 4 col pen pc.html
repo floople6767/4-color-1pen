@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>4 Color Pen - PC</title>
+
+<style>
+*{box-sizing:border-box}
+
+html,body{
+  margin:0;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  background:#bfc4c9;
+}
+
+#paper{
+  position:absolute;
+  left:7.5vw;
+  top:12vh;
+  width:85vw;
+  height:80vh;
+  background:white;
+  border-radius:4px;
+  box-shadow:0 8px 25px rgba(0,0,0,.45);
+  overflow:hidden;
+}
+
+#draw{
+  width:100%;
+  height:100%;
+  display:block;
+  cursor:crosshair;
+}
+
+#info{
+  position:fixed;
+  top:10px;
+  left:50%;
+  transform:translateX(-50%);
+  background:rgba(255,255,255,.9);
+  padding:9px 18px;
+  border-radius:20px;
+  box-shadow:0 3px 10px rgba(0,0,0,.3);
+  font-family:Arial,sans-serif;
+  font-size:14px;
+  z-index:20;
+  user-select:none;
+}
+</style>
+</head>
+
+<body>
+
+<div id="info">
+  1 🔴 &nbsp; 2 🔵 &nbsp; 3 ⚫ &nbsp; 4 🟢
+  &nbsp; | &nbsp; Shift 🧽
+  &nbsp; | &nbsp; Ctrl+Shift ↻
+</div>
+
+<div id="paper">
+  <canvas id="draw"></canvas>
+</div>
+
+<script>
+const canvas = document.getElementById("draw");
+const ctx = canvas.getContext("2d");
+
+let color = "#e53935";
+let erasing = false;
+let drawing = false;
+let lastX = 0;
+let lastY = 0;
+
+/* Canvas sizing */
+function resize(){
+  const old = canvas.toDataURL();
+
+  canvas.width = canvas.clientWidth;
+  canvas.height = canvas.clientHeight;
+
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  if(old !== "data:,"){
+    const img = new Image();
+
+    img.onload = () => {
+      ctx.drawImage(
+        img,
+        0,0,
+        canvas.width,
+        canvas.height
+      );
+    };
+
+    img.src = old;
+  }
+}
+
+resize();
+window.addEventListener("resize",resize);
+
+/* Keyboard controls */
+document.addEventListener("keydown",e => {
+
+  /* Ctrl + Shift = Reset ALL */
+  if(e.ctrlKey && e.shiftKey){
+    e.preventDefault();
+    resetAll();
+    return;
+  }
+
+  /* Shift = Eraser */
+  if(e.key === "Shift"){
+    erasing = true;
+    return;
+  }
+
+  /* Color buttons */
+  if(e.key === "1"){
+    color = "#e53935";
+    erasing = false;
+  }
+
+  if(e.key === "2"){
+    color = "#1976d2";
+    erasing = false;
+  }
+
+  if(e.key === "3"){
+    color = "#222222";
+    erasing = false;
+  }
+
+  if(e.key === "4"){
+    color = "#22a447";
+    erasing = false;
+  }
+});
+
+/* Release Shift */
+document.addEventListener("keyup",e => {
+
+  if(e.key === "Shift"){
+    erasing = false;
+  }
+
+});
+
+/* Get mouse position */
+function position(e){
+
+  const rect =
+    canvas.getBoundingClientRect();
+
+  return {
+    x:e.clientX - rect.left,
+    y:e.clientY - rect.top
+  };
+}
+
+/* Start drawing */
+canvas.addEventListener("mousedown",e => {
+
+  if(e.button !== 0)return;
+
+  drawing = true;
+
+  const p = position(e);
+
+  lastX = p.x;
+  lastY = p.y;
+
+  ctx.beginPath();
+
+  if(erasing){
+    ctx.globalCompositeOperation =
+      "destination-out";
+    ctx.fillStyle = "rgba(0,0,0,1)";
+
+    ctx.arc(
+      lastX,lastY,
+      10,0,Math.PI*2
+    );
+  }else{
+    ctx.globalCompositeOperation =
+      "source-over";
+    ctx.fillStyle = color;
+
+    ctx.arc(
+      lastX,lastY,
+      3,0,Math.PI*2
+    );
+  }
+
+  ctx.fill();
+});
+
+/* Draw */
+canvas.addEventListener("mousemove",e => {
+
+  if(!drawing)return;
+
+  const p = position(e);
+
+  ctx.beginPath();
+
+  if(erasing){
+
+    ctx.globalCompositeOperation =
+      "destination-out";
+
+    ctx.lineWidth = 20;
+
+  }else{
+
+    ctx.globalCompositeOperation =
+      "source-over";
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 6;
+  }
+
+  ctx.moveTo(lastX,lastY);
+  ctx.lineTo(p.x,p.y);
+  ctx.stroke();
+
+  lastX = p.x;
+  lastY = p.y;
+});
+
+/* Stop */
+window.addEventListener("mouseup",() => {
+  drawing = false;
+  ctx.globalCompositeOperation =
+    "source-over";
+});
+
+/* Reset all */
+function resetAll(){
+
+  drawing = false;
+
+  ctx.globalCompositeOperation =
+    "source-over";
+
+  ctx.clearRect(
+    0,0,
+    canvas.width,
+    canvas.height
+  );
+
+  color = "#e53935";
+  erasing = false;
+}
+
+</script>
+
+</body>
+</html>

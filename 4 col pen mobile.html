@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0,
+      maximum-scale=1.0,user-scalable=no">
+
+<title>Finger Drawing</title>
+
+<style>
+*{
+  box-sizing:border-box;
+}
+
+html,body{
+  margin:0;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  background:#bfc4c9;
+  touch-action:none;
+}
+
+/* PAPER */
+#paper{
+  position:absolute;
+  left:7.5vw;
+  top:13vh;
+  width:85vw;
+  height:80vh;
+  background:white;
+  border-radius:4px;
+  box-shadow:0 8px 25px rgba(0,0,0,.45);
+  overflow:hidden;
+}
+
+#draw{
+  display:block;
+  width:100%;
+  height:100%;
+  touch-action:none;
+}
+
+/* ALL BUTTONS AT TOP */
+#toolbar{
+  position:fixed;
+  top:10px;
+  left:50%;
+  transform:translateX(-50%);
+  display:flex;
+  align-items:center;
+  gap:8px;
+  z-index:50;
+  padding:7px 10px;
+  background:rgba(255,255,255,.85);
+  border-radius:30px;
+  box-shadow:0 4px 12px rgba(0,0,0,.35);
+}
+
+/* BUTTONS */
+button{
+  width:42px;
+  height:42px;
+  padding:0;
+  border:0;
+  border-radius:50%;
+  box-shadow:0 3px 7px rgba(0,0,0,.4);
+  cursor:pointer;
+  touch-action:manipulation;
+}
+
+/* COLORS */
+.red{
+  background:#e53935;
+}
+
+.blue{
+  background:#1976d2;
+}
+
+.black{
+  background:#222;
+}
+
+.green{
+  background:#22a447;
+}
+
+.color.selected{
+  outline:3px solid white;
+  outline-offset:2px;
+}
+
+/* ERASER */
+#eraser{
+  background:#eeeeee;
+  font-size:21px;
+}
+
+/* RESET */
+#reset{
+  background:#eeeeee;
+  font-size:23px;
+}
+
+button:active{
+  transform:scale(.88);
+}
+</style>
+</head>
+
+<body>
+
+<!-- PAPER -->
+<div id="paper">
+  <canvas id="draw"></canvas>
+</div>
+
+<!-- TOP TOOLBAR -->
+<div id="toolbar">
+
+  <!-- COLORS -->
+  <button class="color red selected"
+          data-color="#e53935"></button>
+
+  <button class="color blue"
+          data-color="#1976d2"></button>
+
+  <button class="color black"
+          data-color="#222222"></button>
+
+  <button class="color green"
+          data-color="#22a447"></button>
+
+  <!-- ERASER -->
+  <button id="eraser">🧽</button>
+
+  <!-- RESET -->
+  <button id="reset">↻</button>
+
+</div>
+
+<script>
+
+const canvas = document.getElementById("draw");
+const ctx = canvas.getContext("2d");
+
+let currentColor = "#e53935";
+let drawing = false;
+let lastX = 0;
+let lastY = 0;
+let erasing = false;
+
+/* CANVAS SIZE */
+function resizeCanvas(){
+
+  const oldImage = canvas.toDataURL();
+
+  canvas.width = canvas.clientWidth;
+  canvas.height = canvas.clientHeight;
+
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.lineWidth = 6;
+
+  if(oldImage !== "data:,"){
+
+    const img = new Image();
+
+    img.onload = () => {
+      ctx.drawImage(
+        img,
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
+    };
+
+    img.src = oldImage;
+  }
+}
+
+resizeCanvas();
+
+window.addEventListener(
+  "resize",
+  resizeCanvas
+);
+
+/* SELECT COLORS */
+document.querySelectorAll(".color").forEach(button => {
+
+  button.addEventListener(
+    "pointerdown",
+    event => {
+
+      event.stopPropagation();
+
+      currentColor =
+        button.dataset.color;
+
+      erasing = false;
+
+      document
+        .querySelectorAll(".color")
+        .forEach(b =>
+          b.classList.remove("selected")
+        );
+
+      button.classList.add("selected");
+
+      document
+        .getElementById("eraser")
+        .style.outline = "none";
+    }
+  );
+
+});
+
+/* ERASER */
+document.getElementById("eraser")
+.addEventListener("pointerdown", event => {
+
+  event.stopPropagation();
+
+  erasing = true;
+
+  document
+    .querySelectorAll(".color")
+    .forEach(b =>
+      b.classList.remove("selected")
+    );
+
+  document.getElementById("eraser")
+    .style.outline = "3px solid #777";
+
+  document.getElementById("eraser")
+    .style.outlineOffset = "2px";
+});
+
+/* POSITION */
+function getPosition(event){
+
+  const rect =
+    canvas.getBoundingClientRect();
+
+  return {
+    x:event.clientX - rect.left,
+    y:event.clientY - rect.top
+  };
+}
+
+/* START DRAWING */
+canvas.addEventListener(
+  "pointerdown",
+  event => {
+
+    event.preventDefault();
+
+    drawing = true;
+
+    canvas.setPointerCapture(
+      event.pointerId
+    );
+
+    const pos =
+      getPosition(event);
+
+    lastX = pos.x;
+    lastY = pos.y;
+
+    ctx.beginPath();
+
+    if(erasing){
+
+      ctx.globalCompositeOperation =
+        "destination-out";
+
+      ctx.fillStyle = "rgba(0,0,0,1)";
+
+    }else{
+
+      ctx.globalCompositeOperation =
+        "source-over";
+
+      ctx.fillStyle =
+        currentColor;
+    }
+
+    ctx.arc(
+      lastX,
+      lastY,
+      erasing ? 10 : 3,
+      0,
+      Math.PI * 2
+    );
+
+    ctx.fill();
+  }
+);
+
+/* DRAW */
+canvas.addEventListener(
+  "pointermove",
+  event => {
+
+    if(!drawing) return;
+
+    event.preventDefault();
+
+    const pos =
+      getPosition(event);
+
+    ctx.beginPath();
+
+    if(erasing){
+
+      ctx.globalCompositeOperation =
+        "destination-out";
+
+      ctx.lineWidth = 20;
+
+    }else{
+
+      ctx.globalCompositeOperation =
+        "source-over";
+
+      ctx.strokeStyle =
+        currentColor;
+
+      ctx.lineWidth = 6;
+    }
+
+    ctx.moveTo(lastX,lastY);
+    ctx.lineTo(pos.x,pos.y);
+    ctx.stroke();
+
+    lastX = pos.x;
+    lastY = pos.y;
+  }
+);
+
+/* STOP */
+function stopDrawing(event){
+
+  drawing = false;
+
+  ctx.globalCompositeOperation =
+    "source-over";
+
+  try{
+    canvas.releasePointerCapture(
+      event.pointerId
+    );
+  }catch(e){}
+}
+
+canvas.addEventListener(
+  "pointerup",
+  stopDrawing
+);
+
+canvas.addEventListener(
+  "pointercancel",
+  stopDrawing
+);
+
+/* RESET ALL */
+document.getElementById("reset")
+.addEventListener("pointerdown", event => {
+
+  event.stopPropagation();
+
+  ctx.globalCompositeOperation =
+    "source-over";
+
+  ctx.clearRect(
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
+
+  /* Return to red */
+  currentColor = "#e53935";
+  erasing = false;
+
+  document
+    .querySelectorAll(".color")
+    .forEach(b =>
+      b.classList.remove("selected")
+    );
+
+  document
+    .querySelector(".color.red")
+    .classList.add("selected");
+
+  document.getElementById("eraser")
+    .style.outline = "none";
+});
+
+</script>
+
+</body>
+</html>
